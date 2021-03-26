@@ -1,12 +1,32 @@
 ﻿using Sys = System;
+using System.Threading;
+
+using Auios.WebServer.System;
 
 namespace Auios.WebServer
 {
-    class Program
+    public static class Program
     {
+        private static bool runApp = true;
         static void Main(string[] args)
         {
-            Sys.Console.WriteLine("Hello World!");
+            Console.SetCallbacks(ReturnPressed, EscapePressed);
+            while(runApp)
+            {
+                Console.Update();
+
+                Thread.Sleep(1);
+            }
+        }
+
+        static void ReturnPressed(string input)
+        {
+
+        }
+
+        static void EscapePressed()
+        {
+            runApp = false;
         }
     }
 }
