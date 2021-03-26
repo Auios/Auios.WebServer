@@ -1,18 +1,36 @@
 ﻿using Sys = System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 
 namespace Auios.WebServer.System
 {
     unsafe public static class Console
     {
         public static string input = string.Empty;
-        public static string outputFile = "console.log";
+        public static string logFile = "console.log";
 
+        private static bool isRunning = false;
+        private static Thread thread;
         private static int historyIndex = 0;
         private static List<string> history = new List<string>() { "" };
         private static Sys.Action<string> returnMethod;
         private static Sys.Action escapeMethod;
+        private static Dictionary<string, Sys.Action> commands = new Dictionary<string, Sys.Action>();
+
+        public static void Start()
+        {
+            isRunning = true;
+            thread = new Thread(new ThreadStart(Process));
+            thread.Start();
+            WriteLine(Sys.DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss tt"));
+        }
+
+        public static void Stop()
+        {
+            isRunning = false;
+            WriteLine(Sys.DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss tt"));
+        }
 
         public static void SetCallbacks(Sys.Action<string> returnMethod = null, Sys.Action escapeMethod = null)
         {
@@ -23,80 +41,92 @@ namespace Auios.WebServer.System
         public static void Write(dynamic input)
         {
             Sys.Console.Write(input);
-            File.AppendAllText(outputFile, input);
+            File.AppendAllText(logFile, input);
         }
 
         public static void WriteLine(dynamic input)
         {
             Sys.Console.WriteLine(input);
-            File.AppendAllText(outputFile, input + Sys.Environment.NewLine);
+            File.AppendAllText(logFile, input + Sys.Environment.NewLine);
         }
 
-        public static void Update()
+        public static void Process()
         {
-            if(Sys.Console.KeyAvailable)
+            while(isRunning)
             {
-                Sys.ConsoleKeyInfo cki = Sys.Console.ReadKey(false);
-                if(cki.KeyChar >= 32 && cki.KeyChar <= 126) // Printable characters
+                if(Sys.Console.KeyAvailable)
                 {
-                    input += cki.KeyChar;
-                }
-                else if(cki.KeyChar == 27) // Escape
-                {
-                    if(escapeMethod != null) escapeMethod.Invoke();
-                }
-                else if(cki.KeyChar == 8 && input.Length > 0) // Backspace
-                {
-                    input = input.Remove(input.Length - 1, 1);
-                }
-                else if(cki.Key == Sys.ConsoleKey.UpArrow) // Up
-                {
-                    if(historyIndex > 0)
+                    Sys.ConsoleKeyInfo cki = Sys.Console.ReadKey(true);
+                    if(cki.KeyChar >= 32 && cki.KeyChar <= 126) // Printable characters
                     {
-                        historyIndex--;
-                        input = history[historyIndex];
+                        input += cki.KeyChar;
                     }
-                    else
+                    else if(cki.Key == Sys.ConsoleKey.Escape) // Escape
                     {
-                        input = string.Empty;
+                        if(escapeMethod != null) escapeMethod.Invoke();
                     }
-                }
-                else if(cki.Key == Sys.ConsoleKey.DownArrow) // Down
-                {
-                    if(historyIndex < history.Count - 1)
+                    else if(cki.KeyChar == 8 && input.Length > 0) // Backspace
                     {
-                        historyIndex++;
-                        input = history[historyIndex];
+                        input = input.Remove(input.Length - 1, 1);
                     }
-                    else
+                    else if(cki.Key == Sys.ConsoleKey.UpArrow) // Up
                     {
-                        historyIndex = history.Count;
-                        input = string.Empty;
-                    }
-                }
-                else if(cki.KeyChar == 13) // Enter
-                {
-                    Sys.Console.SetCursorPosition(0, Sys.Console.CursorTop);
-                    WriteLine(input);
-                    if(input.Length > 0)
-                    {
-                        WriteLine($"% '{input}'");
-
-                        if(input != history[^1])
+                        if(historyIndex > 0)
                         {
-                            history.Add(input);
-                            historyIndex = history.Count;
+                            historyIndex--;
+                            input = history[historyIndex];
                         }
+                        else
+                        {
+                            input = string.Empty;
+                        }
+                    }
+                    else if(cki.Key == Sys.ConsoleKey.DownArrow) // Down
+                    {
+                        if(historyIndex < history.Count - 1)
+                        {
+                            historyIndex++;
+                            input = history[historyIndex];
+                        }
+                        else
+                        {
+                            historyIndex = history.Count;
+                            input = string.Empty;
+                        }
+                    }
+                    else if(cki.Key == Sys.ConsoleKey.Enter) // Enter
+                    {
+                        Sys.Console.SetCursorPosition(0, Sys.Console.CursorTop);
 
                         if(returnMethod != null) returnMethod.Invoke(input);
-                        input = string.Empty;
+
+                        if(input.Length > 0)
+                        {
+                            WriteLine($"> '{input}'");
+
+                            if(input != history[^1])
+                            {
+                                history.Add(input);
+                                historyIndex = history.Count;
+                            }
+
+                            if(commands.ContainsKey(input))
+                            {
+                                WriteLine($"[Command: {commands[input].Method.Name}]");
+                                commands[input].Invoke();
+                            }
+
+                            input = string.Empty;
+                        }
                     }
+
+                    Sys.Console.SetCursorPosition(0, Sys.Console.CursorTop);
+                    Sys.Console.Write(new string(' ', Sys.Console.WindowWidth));
+                    Sys.Console.SetCursorPosition(0, Sys.Console.CursorTop);
+                    Sys.Console.Write(input);
                 }
 
-                Sys.Console.SetCursorPosition(0, Sys.Console.CursorTop);
-                Sys.Console.Write(new string(' ', Sys.Console.WindowWidth));
-                Sys.Console.SetCursorPosition(0, Sys.Console.CursorTop);
-                Sys.Console.Write(input);
+                Thread.Sleep(1);
             }
         }
 
@@ -108,6 +138,16 @@ namespace Auios.WebServer.System
         public static void ResetColor()
         {
             Sys.Console.ForegroundColor = Sys.ConsoleColor.Gray;
+        }
+
+        public static void ResetLogFile()
+        {
+            File.Delete(logFile);
+        }
+
+        public static void RegisterCommand(string command, Sys.Action function)
+        {
+            commands.Add(command, function);
         }
     }
 }
