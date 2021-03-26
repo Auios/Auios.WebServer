@@ -1,6 +1,4 @@
-﻿using System.Threading;
-
-using Auios.WebServer;
+﻿using Auios.WebServer;
 using Auios.WebServer.System;
 
 using DemoWebsite.ConsoleCommands;
