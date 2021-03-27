@@ -37,8 +37,10 @@ namespace DemoWebsite
         {
             Console.WriteLine("Adding routes...");
 
-            httpServer.AddRoute(new Route("/", "Home", "/views/index.html"));
             httpServer.AddRoute(new Route("/404", "404", "/views/404.html"));
+            httpServer.AddRoute(new Route("/", "Home", "/views/index.html"));
+            httpServer.AddRoute(new Route("/index", "Home", "/views/index.html"));
+            httpServer.AddRoute(new Route("/demo", "Demo", "/views/demo.html"));
         }
     }
 }

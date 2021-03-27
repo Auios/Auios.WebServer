@@ -1,0 +1,16 @@
+﻿<html>
+<head>
+    <title>Demo</title>
+</head>
+<body>
+    <p>Hello from <?lua print("within lua") ?>!</p>
+    <br />
+    <?lua if(false) then ?>
+    <p>This should never show!</p>
+    <?lua else ?>
+    <p>This is to be shown</p>
+    <?lua end ?>
+    <br />
+    <p>End of document...</p>
+</body>
+</html>

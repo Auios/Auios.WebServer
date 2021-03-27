@@ -1,6 +1,8 @@
 ﻿using Sys = System;
 using System.Net;
 
+using NLua;
+
 using Auios.WebServer.System;
 using System.Collections.Generic;
 using System.Text;
@@ -17,6 +19,8 @@ namespace Auios.WebServer
         private Dictionary<string, Route> routes;
         private event ReceiveWebRequest receiveWebRequest;
 
+        private Lua lua;
+
         public HttpServer(string viewsPath)
         {
             publicPath = viewsPath;
@@ -25,6 +29,8 @@ namespace Auios.WebServer
 
             routes.Add("/", new Route("/", "Home", "/views/index.html"));
             routes.Add("/404", routes["/"]);
+
+            lua = new Lua();
         }
 
         public void Start()
@@ -68,6 +74,29 @@ namespace Auios.WebServer
             }
         }
 
+        private string ProcessPage(string fileName)
+        {
+            string contents = File.ReadAllText(fileName);
+            string html = string.Empty;
+            string luaCmd = string.Empty;
+
+            bool isLua = false;
+
+            for(int i = 0; i < contents.Length; i += 1)
+            {
+                if(isLua)
+                {
+                    luaCmd += contents[i];
+                }
+                else
+                {
+                    html += contents[i];
+                }
+            }
+
+            return html;
+        }
+
         private void RequestCallback(Sys.IAsyncResult result)
         {
             HttpListenerContext context = null;
@@ -103,8 +132,6 @@ namespace Auios.WebServer
             Sys.Uri url = request.Url;
             string path = url.AbsolutePath;
 
-            Console.WriteLine($"{Sys.DateTime.Now}\t{ip}\t{path}");
-
             byte[] buffer;
             if(path == "/favicon.ico")
             {
@@ -116,11 +143,14 @@ namespace Auios.WebServer
                 if(!routes.ContainsKey(path))
                 {
                     path = routes["/404"].name;
+                    response.StatusCode = 404;
                 }
-                string responseBody = File.ReadAllText(publicPath + routes[path].path);
-                buffer = Encoding.UTF8.GetBytes(responseBody);
+                string html = ProcessPage(publicPath + routes[path].path);
+                buffer = Encoding.UTF8.GetBytes(html);
                 response.ContentType = "text/html";
             }
+
+            Console.WriteLine($"{Sys.DateTime.Now}\t{ip}\t{response.StatusCode}\t{path}");
 
             if(buffer != null)
             {
