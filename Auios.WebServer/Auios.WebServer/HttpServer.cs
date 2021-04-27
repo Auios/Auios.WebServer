@@ -21,7 +21,7 @@ namespace Auios.WebServer
 
         private Lua lua;
 
-        public HttpServer(string viewsPath)
+        public HttpServer(string viewsPath = "public/")
         {
             publicPath = viewsPath;
             listener = new HttpListener();
@@ -74,26 +74,29 @@ namespace Auios.WebServer
             }
         }
 
-        private string ProcessPage(string fileName)
+        public string ProcessPage(string fileContents)
         {
-            string contents = File.ReadAllText(fileName);
+            fileContents = fileContents.Trim();
             string html = string.Empty;
-            string luaCmd = string.Empty;
+            string luaScript = string.Empty;
 
-            bool isLua = false;
+            string[] parts = fileContents.Split(new string[] { "<?lua", "?>" }, Sys.StringSplitOptions.None);
 
-            for(int i = 0; i < contents.Length; i += 1)
+            bool isHtml = true;
+            lua.DoString("output = '';");
+            foreach(string part in parts)
             {
-                if(isLua)
+                if(isHtml && part.Length > 0)
                 {
-                    luaCmd += contents[i];
+                    luaScript += $"output = output .. '{part}';";
                 }
                 else
                 {
-                    html += contents[i];
+                    luaScript += part;
                 }
+                isHtml = !isHtml;
             }
-
+            Console.WriteLine(luaScript);
             return html;
         }
 
@@ -145,7 +148,8 @@ namespace Auios.WebServer
                     path = routes["/404"].name;
                     response.StatusCode = 404;
                 }
-                string html = ProcessPage(publicPath + routes[path].path);
+
+                string html = ProcessPage(File.ReadAllText(publicPath + routes[path].path));
                 buffer = Encoding.UTF8.GetBytes(html);
                 response.ContentType = "text/html";
             }

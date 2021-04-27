@@ -1,4 +1,6 @@
-﻿using Auios.WebServer;
+﻿using Sys = System;
+using System.IO;
+using Auios.WebServer;
 using Auios.WebServer.System;
 
 using DemoWebsite.ConsoleCommands;
@@ -7,10 +9,19 @@ namespace DemoWebsite
 {
     public static class Program
     {
+        private static bool test = true;
         private static HttpServer httpServer;
 
         static void Main()
         {
+            if(test)
+            {
+                httpServer = new HttpServer();
+                string html = httpServer.ProcessPage(File.ReadAllText("public/views/demo.html"));
+
+                return;
+            }
+
             Console.ResetLogFile();
             Console.RegisterCommand("stop", Stop);
             Console.RegisterCommand("cls", Commands.Clear);
